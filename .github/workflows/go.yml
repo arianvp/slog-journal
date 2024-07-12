@@ -28,4 +28,4 @@ jobs:
       run: go test -v ./...
 
     - name: Integration Test
-      run: systemd-run echo hello world
+      run: sudo systemd-run echo hello world
