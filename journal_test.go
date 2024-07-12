@@ -147,7 +147,6 @@ func TestSlogtest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Log(kv)
 		for k, v := range kv {
 
 			groups := strings.Split(k, "_")
