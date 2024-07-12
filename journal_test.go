@@ -33,6 +33,26 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 	logger.Info("Hello, World!")
 }
 
+func TestFallbackToTempfileWorks(t *testing.T) {
+	handler, err := NewHandler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.conn.SetWriteBuffer(1024) // force a write error
+
+	logger := slog.New(handler)
+
+	// 1025 chars
+
+	msg := "Hello, World!"
+	for range 1024 {
+		msg += "a"
+	}
+
+	logger.Info(msg)
+
+}
+
 func TestCanWriteMessageToJournal(t *testing.T) {
 	if *short {
 		t.Skip("skipping integration test")
