@@ -13,18 +13,17 @@ import (
 	"syscall"
 )
 
-type Priority int
+type priority int
 
-// TODO: Make private
 const (
-	PriEmerg Priority = iota
-	PriAlert
-	PriCrit
-	PriErr
-	PriWarning
-	PriNotice
-	PriInfo
-	PriDebug
+	priEmerg priority = iota
+	priAlert
+	priCrit
+	priErr
+	priWarning
+	priNotice
+	priInfo
+	priDebug
 )
 
 const (
@@ -34,22 +33,22 @@ const (
 	LevelEmergency slog.Level = slog.LevelError + 3
 )
 
-func levelToPriority(l slog.Level) Priority {
+func levelToPriority(l slog.Level) priority {
 	switch l {
 	case slog.LevelDebug:
-		return PriDebug
+		return priDebug
 	case slog.LevelInfo:
-		return PriInfo
+		return priInfo
 	case LevelNotice:
-		return PriNotice
+		return priNotice
 	case slog.LevelWarn:
-		return PriWarning
+		return priWarning
 	case slog.LevelError:
-		return PriErr
+		return priErr
 	case LevelCritical:
-		return PriCrit
+		return priCrit
 	case LevelAlert:
-		return PriAlert
+		return priAlert
 	default:
 		panic("unreachable")
 	}
