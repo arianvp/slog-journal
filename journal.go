@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -13,10 +14,10 @@ import (
 	"syscall"
 )
 
-type priority int
+type Priority int
 
 const (
-	priEmerg priority = iota
+	priEmerg Priority = iota
 	priAlert
 	priCrit
 	priErr
@@ -33,7 +34,7 @@ const (
 	LevelEmergency slog.Level = slog.LevelError + 3
 )
 
-func levelToPriority(l slog.Level) priority {
+func levelToPriority(l slog.Level) Priority {
 	switch l {
 	case slog.LevelDebug:
 		return priDebug
@@ -79,15 +80,24 @@ func NewHandler(opts *Options) (*Handler, error) {
 	if h.opts.Level == nil {
 		h.opts.Level = slog.LevelInfo
 	}
-	localAddr, err := net.ResolveUnixAddr("unixgram", "")
+
+	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := net.ListenUnixgram("unixgram", localAddr)
+	f := os.NewFile(uintptr(fd), "journal")
+	defer f.Close()
+
+	fconn, err := net.FileConn(f)
 	if err != nil {
 		return nil, err
 	}
+	conn, ok := fconn.(*net.UnixConn)
+	if !ok {
+		return nil, fmt.Errorf("expected *net.UnixConn, got %T", fconn)
+	}
+
 	if err := conn.SetWriteBuffer(sndBufSize); err != nil {
 		return nil, err
 	}
