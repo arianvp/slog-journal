@@ -81,6 +81,11 @@ func NewHandler(opts *Options) (*Handler, error) {
 		h.opts.Level = slog.LevelInfo
 	}
 
+	// The "net" library in Go really wants me to either Dial or Listen a UnixConn,
+	// which would respectively bind() an address or connect() to a remote address,
+	// but we want neither. We want to create a datagram socket and write to it directly
+	// and not worry about reconnecting or rebinding.
+	// so jumping through some hoops here
 	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
 	if err != nil {
 		return nil, err
