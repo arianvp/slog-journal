@@ -183,6 +183,9 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if _, err := io.Copy(file, buf); err != nil {
 		return err
 	}
+	if err := trySeal(file); err != nil {
+		return err
+	}
 	fd := int(file.Fd())
 	if _, _, err := h.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(fd), h.addr); err != nil {
 		return err
