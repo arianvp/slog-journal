@@ -53,7 +53,6 @@ func levelToPriority(l slog.Level) Priority {
 
 type Options struct {
 	Level slog.Leveler
-	Addr  string // Address of the journal socket. If not set defaults to /run/systemd/journal/socket. This is useful for testing.
 }
 
 type Handler struct {
@@ -76,7 +75,7 @@ func NewHandler(opts *Options) (*Handler, error) {
 		h.opts.Level = slog.LevelInfo
 	}
 
-	w, err := newJournalWriter(h.opts.Addr)
+	w, err := newJournalWriter()
 	if err != nil {
 		return nil, err
 	}

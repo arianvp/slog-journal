@@ -16,10 +16,7 @@ type journalWriter struct {
 	conn *net.UnixConn
 }
 
-func newJournalWriter(path string) (*journalWriter, error) {
-	if path == "" {
-		path = "/run/systemd/journal/socket"
-	}
+func newJournalWriter() (*journalWriter, error) {
 	// The "net" library in Go really wants me to either Dial or Listen a UnixConn,
 	// which would respectively bind() an address or connect() to a remote address,
 	// but we want neither. We want to create a datagram socket and write to it directly
@@ -51,7 +48,7 @@ func newJournalWriter(path string) (*journalWriter, error) {
 	}
 
 	addr := &net.UnixAddr{
-		Name: path,
+		Name: "/run/systemd/journal/socket",
 		Net:  "unixgram",
 	}
 

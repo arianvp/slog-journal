@@ -185,7 +185,9 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 	}
 	defer conn.Close()
 
-	handler, err := NewHandler(&Options{Addr: addr})
+	handler, err := NewHandler(nil)
+
+	handler.w.(*journalWriter).addr = raddr
 	if err != nil {
 		t.Fatal(err)
 	}
