@@ -86,6 +86,10 @@ func NewHandler(opts *Options) (*Handler, error) {
 		return nil, err
 	}
 
+	if err := syscall.SetNonblock(fd, true); err != nil {
+		return nil, err
+	}
+
 	f := os.NewFile(uintptr(fd), "journal")
 	defer f.Close()
 
@@ -171,11 +175,11 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 	if _, err := io.Copy(file, buf); err != nil {
 		return err
 	}
-	if _, _, err := h.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(int(file.Fd())), h.addr); err != nil {
+	fd := int(file.Fd())
+	if _, _, err := h.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(fd), h.addr); err != nil {
 		return err
 	}
 	return nil
