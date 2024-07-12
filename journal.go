@@ -203,8 +203,6 @@ func (h *Handler) appendAttr(b *bytes.Buffer, prefix string, a slog.Attr) {
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(h.preformatted)
-	// TODO: Is it correct to clobber the preformatted buffer?
-	// NO
 	for _, a := range attrs {
 		h.appendAttr(buf, h.prefix, a)
 	}
