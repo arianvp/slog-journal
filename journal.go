@@ -62,8 +62,7 @@ type Options struct {
 
 type Handler struct {
 	opts         Options
-	conn         *net.UnixConn
-	addr         *net.UnixAddr
+	w            io.Writer
 	prefix       string
 	preformatted *bytes.Buffer
 }
@@ -119,8 +118,10 @@ func NewHandler(opts *Options) (*Handler, error) {
 		Net:  "unixgram",
 	}
 
-	h.conn = conn
-	h.addr = addr
+	h.w = &journalWriter{
+		conn: conn,
+		addr: addr,
+	}
 
 	h.preformatted = new(bytes.Buffer)
 	h.prefix = ""
@@ -147,6 +148,10 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		h.appendKV(buf, "CODE_LINE", []byte(strconv.Itoa(f.Line)))
 	}
 
+	if !r.Time.IsZero() {
+		h.appendKV(buf, "TIMESTAMP", []byte(strconv.Itoa(int(r.Time.Unix()))))
+	}
+
 	if _, err := buf.ReadFrom(h.preformatted); err != nil {
 		return err
 	}
@@ -156,42 +161,9 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		return true
 	})
 
-	// NOTE: No mutex needed. datagram socket writes are atomic
-	_, err := h.conn.WriteToUnix(buf.Bytes(), h.addr)
-	if err == nil {
-		return nil
-	}
-	opErr, ok := err.(*net.OpError)
-	if !ok {
-		return err
-	}
-	errno, ok := opErr.Err.(*os.SyscallError)
-	if !ok {
-		return err
-	}
-	// fail silently if the journal is not available
-	if errno.Err == syscall.ENOENT {
-		return nil
-	}
-	if errno.Err != syscall.ENOBUFS && errno.Err != syscall.EMSGSIZE {
-		return err
-	}
+	_, err := h.w.Write(buf.Bytes())
+	return err
 
-	file, err := tempFd()
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(file, buf); err != nil {
-		return err
-	}
-	if err := trySeal(file); err != nil {
-		return err
-	}
-	fd := int(file.Fd())
-	if _, _, err := h.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(fd), h.addr); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
@@ -209,6 +181,7 @@ func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
 }
 
 func (h *Handler) appendAttr(b *bytes.Buffer, prefix string, a slog.Attr) {
+	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		if a.Key != "" {
 			prefix += a.Key + "_"
@@ -217,7 +190,7 @@ func (h *Handler) appendAttr(b *bytes.Buffer, prefix string, a slog.Attr) {
 			h.appendAttr(b, prefix, g)
 		}
 	} else if key := a.Key; key != "" {
-		h.appendKV(b, prefix+"_"+key, []byte(a.Value.String()))
+		h.appendKV(b, prefix+key, []byte(a.Value.String()))
 	}
 }
 
@@ -230,8 +203,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 	return &Handler{
 		opts:         h.opts,
-		conn:         h.conn,
-		addr:         h.addr,
+		w:            h.w,
 		prefix:       h.prefix,
 		preformatted: buf,
 	}
@@ -241,8 +213,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 func (h *Handler) WithGroup(name string) slog.Handler {
 	return &Handler{
 		opts:         h.opts,
-		conn:         h.conn,
-		addr:         h.addr,
+		w:            h.w,
 		prefix:       h.prefix + name + "_",
 		preformatted: h.preformatted,
 	}
