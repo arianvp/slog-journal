@@ -114,9 +114,9 @@ func NewHandler(opts *Options) (*Handler, error) {
 	if h.opts.Addr == "" {
 		h.opts.Addr = "/run/systemd/journal/socket"
 	}
-	addr, err := net.ResolveUnixAddr("unixgram", h.opts.Addr)
-	if err != nil {
-		return nil, err
+	addr := &net.UnixAddr{
+		Name: h.opts.Addr,
+		Net:  "unixgram",
 	}
 
 	h.conn = conn
@@ -169,6 +169,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if !ok {
 		return err
 	}
+	// fail silently if the journal is not available
 	if errno.Err == syscall.ENOENT {
 		return nil
 	}

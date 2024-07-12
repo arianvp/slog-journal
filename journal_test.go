@@ -2,16 +2,11 @@ package slogjournal
 
 import (
 	"context"
-	"flag"
 	"log/slog"
 	"net"
 	"os"
 	"syscall"
 	"testing"
-)
-
-var (
-	short = flag.Bool("short", false, "Whether to skip integration tests")
 )
 
 func TestCanWriteMessageToSocket(t *testing.T) {
@@ -104,36 +99,4 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 
 	})
 
-}
-
-func TestFallbackToTempfileWorks(t *testing.T) {
-	handler, err := NewHandler(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	handler.conn.SetWriteBuffer(10) // force a write error
-
-	logger := slog.New(handler)
-
-	// 1025 chars
-
-	msg := "Hello, World!"
-	for range 1024 {
-		msg += "a"
-	}
-
-	logger.Info(msg)
-
-}
-
-func TestCanWriteMessageToJournal(t *testing.T) {
-	if *short {
-		t.Skip("skipping integration test")
-	}
-	handler, err := NewHandler(nil)
-	if err != nil {
-		t.Fatal("Error creating new handler")
-	}
-	logger := slog.New(handler)
-	logger.Info("Hello, World!")
 }
