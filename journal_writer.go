@@ -1,6 +1,7 @@
 package slogjournal
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -13,6 +14,51 @@ import (
 type journalWriter struct {
 	addr *net.UnixAddr
 	conn *net.UnixConn
+}
+
+func newJournalWriter(path string) (*journalWriter, error) {
+	if path == "" {
+		path = "/run/systemd/journal/socket"
+	}
+	// The "net" library in Go really wants me to either Dial or Listen a UnixConn,
+	// which would respectively bind() an address or connect() to a remote address,
+	// but we want neither. We want to create a datagram socket and write to it directly
+	// and not worry about reconnecting or rebinding.
+	// so jumping through some hoops here
+	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := syscall.SetNonblock(fd, true); err != nil {
+		return nil, err
+	}
+
+	f := os.NewFile(uintptr(fd), "journal")
+	defer f.Close()
+
+	fconn, err := net.FileConn(f)
+	if err != nil {
+		return nil, err
+	}
+	conn, ok := fconn.(*net.UnixConn)
+	if !ok {
+		return nil, fmt.Errorf("expected *net.UnixConn, got %T", fconn)
+	}
+
+	if err := conn.SetWriteBuffer(sndBufSize); err != nil {
+		return nil, err
+	}
+
+	addr := &net.UnixAddr{
+		Name: path,
+		Net:  "unixgram",
+	}
+
+	return &journalWriter{
+		addr: addr,
+		conn: conn,
+	}, nil
 }
 
 // Write implements io.Writer.
@@ -50,8 +96,8 @@ func (j *journalWriter) Write(p []byte) (n int, err error) {
 		return n, err
 	}
 	fd := int(file.Fd())
-	if n, _, err := j.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(fd), j.addr); err != nil {
-		return n, err
+	if _, _, err := j.conn.WriteMsgUnix([]byte{}, syscall.UnixRights(fd), j.addr); err != nil {
+		return 0, err
 	}
 	return n, err
 }

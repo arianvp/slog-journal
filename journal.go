@@ -4,14 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"log/slog"
-	"net"
-	"os"
 	"runtime"
 	"strconv"
-	"syscall"
 )
 
 type Priority int
@@ -80,49 +76,12 @@ func NewHandler(opts *Options) (*Handler, error) {
 		h.opts.Level = slog.LevelInfo
 	}
 
-	// The "net" library in Go really wants me to either Dial or Listen a UnixConn,
-	// which would respectively bind() an address or connect() to a remote address,
-	// but we want neither. We want to create a datagram socket and write to it directly
-	// and not worry about reconnecting or rebinding.
-	// so jumping through some hoops here
-	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
+	w, err := newJournalWriter(h.opts.Addr)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := syscall.SetNonblock(fd, true); err != nil {
-		return nil, err
-	}
-
-	f := os.NewFile(uintptr(fd), "journal")
-	defer f.Close()
-
-	fconn, err := net.FileConn(f)
-	if err != nil {
-		return nil, err
-	}
-	conn, ok := fconn.(*net.UnixConn)
-	if !ok {
-		return nil, fmt.Errorf("expected *net.UnixConn, got %T", fconn)
-	}
-
-	if err := conn.SetWriteBuffer(sndBufSize); err != nil {
-		return nil, err
-	}
-
-	if h.opts.Addr == "" {
-		h.opts.Addr = "/run/systemd/journal/socket"
-	}
-	addr := &net.UnixAddr{
-		Name: h.opts.Addr,
-		Net:  "unixgram",
-	}
-
-	h.w = &journalWriter{
-		conn: conn,
-		addr: addr,
-	}
-
+	h.w = w
 	h.preformatted = new(bytes.Buffer)
 	h.prefix = ""
 
