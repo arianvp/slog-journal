@@ -118,6 +118,30 @@ func TestBasicFunctionality(t *testing.T) {
 
 }
 
+func TestReplaceAttr(t *testing.T) {
+	buf := new(bytes.Buffer)
+	handler, err := NewHandler(&Options{ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+		a.Key = strings.ToUpper(a.Key)
+		return a
+	}})
+
+	handler.w = buf
+	if err != nil {
+		t.Fatal("Error creating new handler")
+	}
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
+	record.AddAttrs(slog.Attr{Key: "key", Value: slog.StringValue("value")})
+
+	handler.Handle(context.TODO(), record)
+	kv, err := deserializeKeyValue(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kv["KEY"] != "value" {
+		t.Error("Unexpected attribute", kv)
+	}
+}
+
 func createNestedMap(m map[string]any, keys []string, value any) {
 	for i, key := range keys {
 		if i == len(keys)-1 {
