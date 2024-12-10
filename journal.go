@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"runtime"
 	"strconv"
+	"strings"
 )
 
 type Priority int
@@ -52,7 +53,8 @@ func levelToPriority(l slog.Level) Priority {
 }
 
 type Options struct {
-	Level slog.Leveler
+	Level       slog.Leveler
+	ReplaceAttr func(groups []string, a slog.Attr) slog.Attr
 }
 
 type Handler struct {
@@ -139,6 +141,13 @@ func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
 }
 
 func (h *Handler) appendAttr(b *bytes.Buffer, prefix string, a slog.Attr) {
+	if rep := h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != slog.KindGroup {
+		var gs []string
+		if h.prefix != "" {
+			gs = strings.Split(h.prefix, "_")
+		}
+		a = rep(gs, a)
+	}
 	a.Value = a.Value.Resolve()
 	if a.Value.Kind() == slog.KindGroup {
 		if a.Key != "" {
