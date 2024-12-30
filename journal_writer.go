@@ -1,6 +1,7 @@
 package slogjournal
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -58,25 +59,16 @@ func newJournalWriter() (io.Writer, error) {
 func (j *journalWriter) Write(p []byte) (n int, err error) {
 	// NOTE: No mutex needed. datagram socket writes are atomic
 	n, err = j.conn.WriteToUnix(p, j.addr)
-	if err == nil {
-		return n, nil
-	}
-	opErr, ok := err.(*net.OpError)
-	if !ok {
-		return n, err
-	}
-	errno, ok := opErr.Err.(*os.SyscallError)
-	if !ok {
-		return n, err
-	}
 	// fail silently if the journal is not available
-	if errno.Err == syscall.ENOENT {
+	if err == nil || errors.Is(err, syscall.ENOENT) {
 		return n, nil
 	}
-	if errno.Err != syscall.ENOBUFS && errno.Err != syscall.EMSGSIZE {
+
+	if !errors.Is(err, syscall.ENOBUFS) && !errors.Is(err, syscall.EMSGSIZE) {
 		return n, err
 	}
 
+	// Message does not fit in a single datagram, write to a temp file and send the file descriptor
 	file, err := tempFd()
 	if err != nil {
 		return n, err
