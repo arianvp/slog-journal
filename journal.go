@@ -133,15 +133,15 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 
 func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
 	if bytes.IndexByte(v, '\n') != -1 {
-		b.WriteString(k)
-		b.WriteByte('\n')
-		binary.Write(b, binary.LittleEndian, uint64(len(v)))
-		b.Write(v)
+		_, _ = b.WriteString(k)
+		_ = b.WriteByte('\n')
+		_ = binary.Write(b, binary.LittleEndian, uint64(len(v)))
+		_, _ = b.Write(v)
 	} else {
-		b.WriteString(k)
-		b.WriteByte('=')
-		b.Write(v)
-		b.WriteByte('\n')
+		_, _ = b.WriteString(k)
+		_ = b.WriteByte('=')
+		_, _ = b.Write(v)
+		_ = b.WriteByte('\n')
 	}
 }
 
@@ -169,7 +169,7 @@ func (h *Handler) appendAttr(b *bytes.Buffer, prefix string, a slog.Attr) {
 // WithAttrs implements slog.Handler.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(h.preformatted)
+	_, _ = buf.ReadFrom(h.preformatted)
 	for _, a := range attrs {
 		h.appendAttr(buf, h.prefix, a)
 	}
