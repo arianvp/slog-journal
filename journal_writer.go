@@ -85,6 +85,7 @@ func (j *journalWriter) Write(p []byte) (n int, err error) {
 	if err != nil {
 		return n, err
 	}
+	defer file.Close()
 	if n, err := file.Write(p); err != nil {
 		return n, err
 	}
