@@ -138,7 +138,6 @@ func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
 		binary.Write(b, binary.LittleEndian, uint64(len(v)))
 		b.Write(v)
 	} else {
-		setsockopt_int
 		b.WriteString(k)
 		b.WriteByte('=')
 		b.Write(v)
