@@ -16,7 +16,7 @@ type journalWriter struct {
 	conn *net.UnixConn
 }
 
-func newJournalWriter() (*journalWriter, error) {
+func newJournalWriter() (io.WriteCloser, error) {
 	// The "net" library in Go really wants me to either Dial or Listen a UnixConn,
 	// which would respectively bind() an address or connect() to a remote address,
 	// but we want neither. We want to create a datagram socket and write to it directly
@@ -24,10 +24,6 @@ func newJournalWriter() (*journalWriter, error) {
 	// so jumping through some hoops here
 	fd, err := syscall.Socket(syscall.AF_UNIX, syscall.SOCK_DGRAM, 0)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := syscall.SetNonblock(fd, true); err != nil {
 		return nil, err
 	}
 
@@ -58,7 +54,10 @@ func newJournalWriter() (*journalWriter, error) {
 	}, nil
 }
 
-// Write implements io.Writer.
+func (j *journalWriter) Close() error {
+	return j.conn.Close()
+}
+
 // If the message is too large, it will write the message to a temporary file and send the file descriptor as OOB data.
 func (j *journalWriter) Write(p []byte) (n int, err error) {
 	// NOTE: No mutex needed. datagram socket writes are atomic
