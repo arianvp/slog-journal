@@ -64,6 +64,7 @@ type Handler struct {
 	// makes writes atomic and thus we do not need any additional
 	// synchronization.
 	w            io.Writer
+	groups       []string
 	prefix       string
 	preformatted []byte
 }
@@ -173,6 +174,13 @@ func (h *Handler) appendAttr(b []byte, prefix string, a slog.Attr) []byte {
 	// Attr's values should be resolved.
 	a.Value = a.Value.Resolve()
 
+	if rep := h.opts.ReplaceAttr; rep != nil && a.Value.Kind() != slog.KindGroup {
+		// a.Value is resolved before calling ReplaceAttr, so the user doesn't have to.
+		a = rep(h.groups, a)
+		// The ReplaceAttr function may return an unresolved Attr.
+		a.Value = a.Value.Resolve()
+	}
+
 	// If an Attr's key and value are both the zero value, ignore the Attr.
 	if a.Equal(slog.Attr{}) {
 		return b
@@ -211,9 +219,13 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 // WithGroup implements slog.Handler.
 func (h *Handler) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
 	return &Handler{
 		opts:         h.opts,
 		w:            h.w,
+		groups:       append(slices.Clip(h.groups), name),
 		prefix:       h.prefix + name + "_",
 		preformatted: h.preformatted,
 	}
