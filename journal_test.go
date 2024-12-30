@@ -89,7 +89,7 @@ func TestBasicFunctionality(t *testing.T) {
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
 	record.AddAttrs(slog.Attr{Key: "key", Value: slog.StringValue("value")})
 
-	handler.Handle(context.TODO(), record)
+	_ = handler.Handle(context.TODO(), record)
 	kv, err := deserializeKeyValue(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func TestBasicFunctionality(t *testing.T) {
 
 	recordNoTime := slog.NewRecord(time.Time{}, slog.LevelInfo, "Hello, World!", 0)
 
-	handler.Handle(context.TODO(), recordNoTime)
+	_ = handler.Handle(context.TODO(), recordNoTime)
 	kv, err = deserializeKeyValue(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -131,7 +131,7 @@ func TestReplaceAttr(t *testing.T) {
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
 	record.AddAttrs(slog.Attr{Key: "key", Value: slog.StringValue("value")})
 
-	handler.Handle(context.TODO(), record)
+	_ = handler.Handle(context.TODO(), record)
 	kv, err := deserializeKeyValue(buf)
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 
 	t.Run("TooLarge", func(t *testing.T) {
 
-		handler.w.(*journalWriter).conn.SetWriteBuffer(1024)
+		_ = handler.w.(*journalWriter).conn.SetWriteBuffer(1024)
 
 		largeLog := "Hello, World!"
 		for range 1024 {
@@ -267,10 +267,10 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 				t.Error(err)
 			}
 			for _, fd := range rights {
-				syscall.SetNonblock(int(fd), true)
+				_ = syscall.SetNonblock(int(fd), true)
 				f := os.NewFile(uintptr(fd), "journal")
 				defer f.Close()
-				f.Seek(0, 0)
+				_, _ = f.Seek(0, 0)
 				buf := make([]byte, 4096)
 				n, err := f.Read(buf)
 				if err != nil {
