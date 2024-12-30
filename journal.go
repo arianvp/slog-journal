@@ -58,7 +58,11 @@ type Options struct {
 }
 
 type Handler struct {
-	opts         Options
+	opts Options
+	// NOTE: We only do single Write() calls. Either the message fits in a
+	// single datagram, or we send a file descriptor pointing to a tempfd. This
+	// makes writes atomic and thus we do not need any additional
+	// synchronization.
 	w            io.Writer
 	prefix       string
 	preformatted *bytes.Buffer
@@ -74,6 +78,7 @@ func NewHandler(opts *Options) (*Handler, error) {
 	}
 
 	if h.opts.Level == nil {
+		// TODO: Implement a leveler that checks DEBUG_INVOCATION=1
 		h.opts.Level = slog.LevelInfo
 	}
 
@@ -97,7 +102,7 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	h.appendKV(buf, "MESSAGE", []byte(r.Message))
 	h.appendKV(buf, "PRIORITY", []byte(strconv.Itoa(int(levelToPriority(r.Level)))))
 	if r.PC != 0 {
@@ -133,6 +138,7 @@ func (h *Handler) appendKV(b *bytes.Buffer, k string, v []byte) {
 		binary.Write(b, binary.LittleEndian, uint64(len(v)))
 		b.Write(v)
 	} else {
+		setsockopt_int
 		b.WriteString(k)
 		b.WriteByte('=')
 		b.Write(v)
