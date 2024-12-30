@@ -98,7 +98,7 @@ func TestBasicFunctionality(t *testing.T) {
 		t.Error("Unexpected message")
 	}
 	if kv["PRIORITY"] != "6" {
-		t.Error("Unexpected priority")
+		t.Error("Unexpected priority", kv)
 	}
 	if kv["key"] != "value" {
 		t.Error("Unexpected attribute", kv)
