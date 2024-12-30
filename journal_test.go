@@ -82,10 +82,10 @@ func readUntil(r io.Reader, delimiters []byte, buf []byte) ([]byte, error) {
 func TestBasicFunctionality(t *testing.T) {
 	buf := new(bytes.Buffer)
 	handler, err := NewHandler(nil)
-	handler.w = buf
 	if err != nil {
-		t.Fatal("Error creating new handler")
+		t.Fatal(err)
 	}
+	handler.w = buf
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
 	record.AddAttrs(slog.Attr{Key: "key", Value: slog.StringValue("value")})
 
@@ -124,11 +124,10 @@ func TestReplaceAttr(t *testing.T) {
 		a.Key = strings.ToUpper(a.Key)
 		return a
 	}})
-
-	handler.w = buf
 	if err != nil {
-		t.Fatal("Error creating new handler")
+		t.Fatal(err)
 	}
+	handler.w = buf
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
 	record.AddAttrs(slog.Attr{Key: "key", Value: slog.StringValue("value")})
 
@@ -160,10 +159,10 @@ func TestSlogtest(t *testing.T) {
 
 	slogtest.Run(t, func(t *testing.T) slog.Handler {
 		handler, err := NewHandler(nil)
-		handler.w = &buf
 		if err != nil {
-			t.Fatal("Error creating new handler")
+			t.Fatal(err)
 		}
+		handler.w = &buf
 		return handler
 	}, func(t *testing.T) map[string]any {
 		m := make(map[string]any)
@@ -210,11 +209,11 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 	defer conn.Close()
 
 	handler, err := NewHandler(nil)
-
-	handler.w.(*journalWriter).addr = raddr
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	handler.w.(*journalWriter).addr = raddr
 
 	t.Run("NormalSize", func(t *testing.T) {
 		if err := handler.Handle(context.TODO(), slog.Record{Level: slog.LevelInfo, Message: "Hello, World!"}); err != nil {
