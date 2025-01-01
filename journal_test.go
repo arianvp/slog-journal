@@ -111,7 +111,7 @@ func TestBasicFunctionality(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, ok := kv["TIMESTAMP"]
+	v, ok := kv["SYSLOG_TIMESTAMP"]
 	if ok {
 		t.Error("Unexpected timestamp", v, kv)
 	}
@@ -216,7 +216,7 @@ func TestSlogtest(t *testing.T) {
 				k = slog.MessageKey
 			case "PRIORITY":
 				k = slog.LevelKey
-			case "TIMESTAMP":
+			case "SYSLOG_TIMESTAMP":
 				k = slog.TimeKey
 			}
 			m[k] = v

@@ -133,7 +133,8 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	// NOTE: journald does its own timestamping. Lets just ignore
 	// NOTE: slogtest requires this. grrr
 	if !r.Time.IsZero() {
-		buf = h.appendKV(buf, "TIMESTAMP", []byte(strconv.Itoa(int(r.Time.Unix()))))
+		timestampStr := strconv.FormatInt(r.Time.UnixMicro(), 10)
+		buf = h.appendKV(buf, "SYSLOG_TIMESTAMP", []byte(timestampStr))
 	}
 
 	buf = append(buf, h.preformatted...)
