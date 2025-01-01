@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"io"
 	"log/slog"
+	"os"
+	"path"
 	"runtime"
 	"slices"
 	"strconv"
@@ -99,6 +101,8 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
 }
 
+var identifier = []byte(path.Base(os.Args[0]))
+
 // Handle handles the Record.
 // It will only be called when Enabled returns true.
 // The Context argument is as for Enabled.
@@ -136,6 +140,8 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		timestampStr := strconv.FormatInt(r.Time.UnixMicro(), 10)
 		buf = h.appendKV(buf, "SYSLOG_TIMESTAMP", []byte(timestampStr))
 	}
+
+	buf = h.appendKV(buf, "SYSLOG_IDENTIFIER", identifier)
 
 	buf = append(buf, h.preformatted...)
 
