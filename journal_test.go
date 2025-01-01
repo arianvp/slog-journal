@@ -126,8 +126,8 @@ func TestWithAttrs(t *testing.T) {
 	buf := new(bytes.Buffer)
 	h.w = buf
 
-	h2 := h.WithAttrs([]slog.Attr{{Key: "key2", Value: slog.StringValue("value2")}})
-	h3 := h2.WithAttrs([]slog.Attr{{Key: "key3", Value: slog.StringValue("value3")}})
+	h2 := h.WithAttrs([]slog.Attr{{Key: "KEY2", Value: slog.StringValue("value2")}})
+	h3 := h2.WithAttrs([]slog.Attr{{Key: "KEY3", Value: slog.StringValue("value3")}})
 
 	_ = h2.Handle(context.TODO(), slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0))
 
@@ -135,18 +135,18 @@ func TestWithAttrs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kv["key2"] != "value2" {
-		t.Error("expected key2=value2", kv)
+	if kv["KEY2"] != "value2" {
+		t.Error("expected KEY2=value2", kv)
 	}
 	_ = h3.Handle(context.TODO(), slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0))
 	kv, err = deserializeKeyValue(buf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kv["key2"] != "value2" {
+	if kv["KEY2"] != "value2" {
 		t.Error("expected key2=value2", kv)
 	}
-	if kv["key3"] != "value3" {
+	if kv["KEY3"] != "value3" {
 		t.Error("expected key3=value3", kv)
 	}
 

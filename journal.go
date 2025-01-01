@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"log/slog"
+	"log/syslog"
 	"os"
 	"path"
 	"runtime"
@@ -13,52 +14,57 @@ import (
 	"strconv"
 )
 
-type Priority int
-
 const (
-	priEmerg Priority = iota
-	priAlert
-	priCrit
-	priErr
-	priWarning
-	priNotice
-	priInfo
-	priDebug
-)
+	LevelNotice slog.Level = 1
 
-const (
-	LevelNotice    slog.Level = 1
 	LevelCritical  slog.Level = slog.LevelError + 1
 	LevelAlert     slog.Level = slog.LevelError + 2
 	LevelEmergency slog.Level = slog.LevelError + 3
 )
 
-func levelToPriority(l slog.Level) Priority {
+func levelToPriority(l slog.Level) syslog.Priority {
 	switch l {
 	case slog.LevelDebug:
-		return priDebug
+		return syslog.LOG_DEBUG
 	case slog.LevelInfo:
-		return priInfo
+		return syslog.LOG_INFO
 	case LevelNotice:
-		return priNotice
+		return syslog.LOG_NOTICE
 	case slog.LevelWarn:
-		return priWarning
+		return syslog.LOG_WARNING
 	case slog.LevelError:
-		return priErr
+		return syslog.LOG_ERR
 	case LevelCritical:
-		return priCrit
+		return syslog.LOG_CRIT
 	case LevelAlert:
-		return priAlert
+		return syslog.LOG_ALERT
+	case LevelEmergency:
+		return syslog.LOG_EMERG
 	default:
-		panic("unreachable")
+		return syslog.LOG_INFO
 	}
 }
 
 type Options struct {
-	Level       slog.Leveler
+	Level slog.Leveler
+
+	// ReplaceAttr is called on all non-builtin Attrs before they are written.
+	// This can be useful for processing attributes to be in the correct format
+	// for log statements outside of your own code as the journal only accepts
+	// variables that are uppercase and consist only of characters, numbers and
+	// underscores, and may not begin with an underscore.
 	ReplaceAttr func(groups []string, a slog.Attr) slog.Attr
+
+	// ReplaceGroup is called on all group names before they are written.  This
+	// can be useful for processing group names to be in the correct format for
+	// log statements outside of your own code as the journal only accepts
+	// variables that are uppercase and consist only of characters, numbers and
+	// underscores, and may not begin with an underscore.
+	ReplaceGroup func(group string) string
 }
 
+// Handler sends logs to the systemd journal.
+// variable names must be in uppercase and consist only of characters, numbers and underscores, and may not begin with an underscore.
 type Handler struct {
 	opts Options
 	// NOTE: We only do single Write() calls. Either the message fits in a
@@ -202,6 +208,9 @@ func (h *Handler) appendAttr(b []byte, prefix string, a slog.Attr) []byte {
 		// If a group's key is not empty, append the group's key as a prefix.
 		// Otherwise, if a group's key is empty, inline the group's Attrs.
 		if a.Key != "" {
+			if rep := h.opts.ReplaceGroup; rep != nil {
+				a.Key = rep(a.Key)
+			}
 			prefix += a.Key + "_"
 		}
 		for _, a := range attrs {
@@ -228,6 +237,9 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
+	}
+	if rep := h.opts.ReplaceGroup; rep != nil {
+		name = rep(name)
 	}
 	return &Handler{
 		opts:         h.opts,
