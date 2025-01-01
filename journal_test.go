@@ -175,6 +175,34 @@ func TestReplaceAttr(t *testing.T) {
 	}
 }
 
+func TestReplaceGroup(t *testing.T) {
+	buf := new(bytes.Buffer)
+	handler, err := NewHandler(&Options{
+		ReplaceGroup: func(group string) string {
+			return strings.ToUpper(group)
+		},
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			a.Key = strings.ToUpper(a.Key)
+			return a
+		}})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler.w = buf
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "Hello, World!", 0)
+	record.AddAttrs(slog.Group("group", slog.Attr{Key: "key", Value: slog.StringValue("value")}))
+
+	_ = handler.Handle(context.TODO(), record)
+	kv, err := deserializeKeyValue(buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kv["GROUP_KEY"] != "value" {
+		t.Error("Unexpected attribute", kv)
+	}
+}
+
 func createNestedMap(m map[string]any, keys []string, value any) {
 	for i, key := range keys {
 		if i == len(keys)-1 {
