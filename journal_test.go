@@ -302,7 +302,7 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 		_ = handler.w.(*journalWriter).conn.SetWriteBuffer(1024)
 
 		largeLog := "Hello, World!"
-		for range 1024 {
+		for i := 0; i <= 1024; i++ {
 			largeLog += "a"
 		}
 
