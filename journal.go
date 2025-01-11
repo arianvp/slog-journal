@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
+	"syscall"
 )
 
 const (
@@ -105,6 +107,33 @@ func NewHandler(opts *Options) (*Handler, error) {
 // Enabled implements slog.Handler.
 func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
+}
+
+// StderrIsJournal checks whether stderr is connected to the journal.  You can
+// use this to upgrade to the native journal protocol or else keep logging to
+// stderr.
+func StderrIsJournal() bool {
+	e := os.Getenv("JOURNAL_STREAM")
+	if e == "" {
+		return false
+	}
+	strs := strings.SplitN(e, ":", 2)
+
+	dev, err := strconv.Atoi(strs[0])
+	if err != nil {
+		return false
+	}
+	ino, err := strconv.Atoi(strs[1])
+	if err != nil {
+		return false
+	}
+
+	var stat syscall.Stat_t
+	err = syscall.Fstat(int(os.Stderr.Fd()), &stat)
+	if err != nil {
+		return false
+	}
+	return stat.Dev == uint64(dev) && stat.Ino == uint64(ino)
 }
 
 var identifier = []byte(path.Base(os.Args[0]))
