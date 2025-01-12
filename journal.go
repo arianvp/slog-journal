@@ -12,15 +12,37 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"sync"
 )
 
+// Names of levels corresponding to syslog.Priority values.
 const (
-	LevelNotice slog.Level = 1
-
+	LevelNotice    slog.Level = slog.LevelInfo + 1
 	LevelCritical  slog.Level = slog.LevelError + 1
 	LevelAlert     slog.Level = slog.LevelError + 2
 	LevelEmergency slog.Level = slog.LevelError + 3
 )
+
+// LevelVar is similar to [slog.LevelVar] but also implements the service side of [RestartMode=debug].
+// It looks if the environment variable DEBUG_INVOCATION is set and if so, sets the level to slog.LevelDebug.
+// The zero value of LevelVar is equivalent to slog.LevelInfo.
+// In the future, we might extend the behaviour of LevelVar to implement [org.freedesktop.LogControl1].
+//
+// [RestartMode=debug]: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html#RestartMode=
+// [org.freedesktop.LogControl1]: https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.LogControl1.html
+type LevelVar struct {
+	slog.LevelVar
+}
+
+// Return l's level.
+func (l *LevelVar) Level() slog.Level {
+	sync.OnceFunc(func() {
+		if os.Getenv("DEBUG_INVOCATION") != "" {
+			l.Set(slog.LevelDebug)
+		}
+	})()
+	return l.LevelVar.Level()
+}
 
 func levelToPriority(l slog.Level) syslog.Priority {
 	switch l {
@@ -51,20 +73,18 @@ type Options struct {
 	// ReplaceAttr is called on all non-builtin Attrs before they are written.
 	// This can be useful for processing attributes to be in the correct format
 	// for log statements outside of your own code as the journal only accepts
-	// variables that are uppercase and consist only of characters, numbers and
-	// underscores, and may not begin with an underscore.
+	// keys of the form ^[A-Z_][A-Z0-9_]*$.
 	ReplaceAttr func(groups []string, a slog.Attr) slog.Attr
 
 	// ReplaceGroup is called on all group names before they are written.  This
 	// can be useful for processing group names to be in the correct format for
 	// log statements outside of your own code as the journal only accepts
-	// variables that are uppercase and consist only of characters, numbers and
-	// underscores, and may not begin with an underscore.
+	// keys of the form ^[A-Z_][A-Z0-9_]*$.
 	ReplaceGroup func(group string) string
 }
 
 // Handler sends logs to the systemd journal.
-// variable names must be in uppercase and consist only of characters, numbers and underscores, and may not begin with an underscore.
+// The journal only accepts keys of the form ^[A-Z_][A-Z0-9_]*$.
 type Handler struct {
 	opts Options
 	// NOTE: We only do single Write() calls. Either the message fits in a
@@ -79,6 +99,12 @@ type Handler struct {
 
 const sndBufSize = 8 * 1024 * 1024
 
+// NewHandler returns a new Handler that writes to the systemd journal.
+// The journal only accepts keys of the form ^[A-Z_][A-Z0-9_]*$.
+// If opts is nil, the default options are used.
+// If opts.Level is nil, the default level is a [LevelVar] which is equivalent to
+// slog.LevelInfo unless the environment variable DEBUG_INVOCATION is set, in
+// which case it is slog.LevelDebug.
 func NewHandler(opts *Options) (*Handler, error) {
 	h := &Handler{}
 
@@ -87,8 +113,7 @@ func NewHandler(opts *Options) (*Handler, error) {
 	}
 
 	if h.opts.Level == nil {
-		// TODO: Implement a leveler that checks DEBUG_INVOCATION=1
-		h.opts.Level = slog.LevelInfo
+		h.opts.Level = &LevelVar{}
 	}
 
 	w, err := newJournalWriter()
@@ -102,30 +127,19 @@ func NewHandler(opts *Options) (*Handler, error) {
 
 }
 
-// Enabled implements slog.Handler.
+// Enabled reports whether the handler handles records at the given level.
+// The handler ignores records whose level is lower.
+// It is called early, before any arguments are processed,
+// to save effort if the log event should be discarded.
 func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.opts.Level.Level()
 }
 
 var identifier = []byte(path.Base(os.Args[0]))
 
-// Handle handles the Record.
-// It will only be called when Enabled returns true.
-// The Context argument is as for Enabled.
-// It is present solely to provide Handlers access to the context's values.
-// Canceling the context should not affect record processing.
-// (Among other things, log messages may be necessary to debug a
-// cancellation-related problem.)
-//
-// Handle methods that produce output should observe the following rules:
-//   - If r.Time is the zero time, ignore the time.
-//   - If r.PC is zero, ignore it.
-//   - Attr's values should be resolved.
-//   - If an Attr's key and value are both the zero value, ignore the Attr.
-//     This can be tested with attr.Equal(Attr{}).
-//   - If a group's key is empty, inline the group's Attrs.
-//   - If a group has no Attrs (even if it has a non-empty key),
-//     ignore it.
+// Handle handles the Record and formats it as a [journal message](https://systemd.io/JOURNAL_NATIVE_PROTOCOL/).
+// Journal only supports keys of the form ^[A-Z_][A-Z0-9_]*$.
+// Any other keys will be silently dropped.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 1024)
 	buf = h.appendKV(buf, "MESSAGE", []byte(r.Message))
@@ -227,7 +241,8 @@ func (h *Handler) appendAttr(b []byte, prefix string, a slog.Attr) []byte {
 	return b
 }
 
-// WithAttrs implements slog.Handler.
+// WithAttrs returns a new Handler whose attributes consist of
+// both the receiver's attributes and the arguments.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	h2 := *h
 	pre := slices.Clone(h2.preformatted)
@@ -238,7 +253,8 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &h2
 }
 
-// WithGroup implements slog.Handler.
+// WithGroup returns a new Handler with the given group appended to
+// the receiver's existing groups.
 func (h *Handler) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
