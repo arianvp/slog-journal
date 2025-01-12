@@ -12,11 +12,6 @@ log.Info("Hello, world!", "EXTRA_KEY", "5")
 log.Info("Hello, world!", slog.Group("HTTP", "METHOD", "put", "URL", "http://example.com"))
 ```
 
-
-> [!CAUTION]
-> This is pre-release software. No releases have been tagged yet.
-
-
 ### Make sure your logs are compatible with the journal
 
 When using third-party slog libraries, you do not have control over the attributes that are passed to the logger.
@@ -25,6 +20,7 @@ For this you can use the `ReplaceGroup` and `ReplaceAttr` fields in `Options`:
 
 
 ```go
+packag
 import (
     "log/slog"
     sloghttp "github.com/samber/slog-http"
