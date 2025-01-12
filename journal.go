@@ -154,6 +154,11 @@ var identifier = []byte(path.Base(os.Args[0]))
 // Keys starting with an underscore are reserved for internal use and will be dropped.
 // Any other keys will be silently dropped.
 //
+// Message keys may appear multiple times.
+// Message values may contain arbitrary binary data.
+// If the message does not fit in a single datagram, the message is sent as a file descriptor pointing to a tempfd.
+// If the tempfd feature is not available, the message is sent as a file descriptor pointing to a temporary file in /dev/shm.
+//
 // [journal message]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html
 // [MESSAGE]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#MESSAGE=
 // [PRIORITY]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#PRIORITY=
