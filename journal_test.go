@@ -347,3 +347,45 @@ func TestCanWriteMessageToSocket(t *testing.T) {
 	})
 
 }
+
+func TestLevel(t *testing.T) {
+	l := LevelVar{}
+	if l.Level() != slog.LevelInfo {
+		t.Error("expected LevelInfo")
+	}
+
+	h, err := NewHandler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.opts.Level.Level() != slog.LevelInfo {
+		t.Error("expected LevelInfo")
+	}
+
+	l = LevelVar{}
+	os.Setenv("DEBUG_INVOCATION", "1")
+	if l.Level() != slog.LevelDebug {
+		t.Error("expected LevelDebug")
+	}
+
+	h, err = NewHandler(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.opts.Level.Level() != slog.LevelDebug {
+		t.Error("expected LevelDebug")
+	}
+
+	h, err = NewHandler(&Options{Level: slog.LevelError})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.opts.Level.Level() != slog.LevelError {
+		t.Error("expected LevelError")
+	}
+
+	if !h.Enabled(context.TODO(), slog.LevelError) {
+		t.Error("expected true")
+	}
+
+}
