@@ -4,9 +4,6 @@
 
 ## Usage
 
-> [!NOTE]
-> Journald only supports keys of the form `^[A-Z_][A-Z0-9_]*$`. Any other keys will be silently dropped.
-
 ```go
 h , err := slogjournal.NewHandler(nil)
 log := slog.New(h)
