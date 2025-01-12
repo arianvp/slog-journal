@@ -20,38 +20,31 @@ For this you can use the `ReplaceGroup` and `ReplaceAttr` fields in `Options`:
 
 
 ```go
-packag
+package main
+
 import (
     "log/slog"
     sloghttp "github.com/samber/slog-http"
     slogjournal "github.com/systemd/slog-journal"
 )
 
-h , err := slogjournal.NewHandler(&slogjournal.Options{
-    ReplaceGroup: func(k string) string {
-        return strings.ReplaceAll(strings.ToUpper(k), "-", "_")
-    },
-    ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-        a.Key = strings.ReplaceAll(strings.ToUpper(a.Key), "-", "_")
-        return a
-    },
-})
+func main() {
+    h , err := slogjournal.NewHandler(&slogjournal.Options{
+        ReplaceGroup: func(k string) string {
+            return strings.ReplaceAll(strings.ToUpper(k), "-", "_")
+        },
+        ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+            a.Key = strings.ReplaceAll(strings.ToUpper(a.Key), "-", "_")
+            return a
+        },
+    })
 
-log := slog.New(h)
-mux := http.NewServeMux()
-mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-    log.Info("Hello world")
-    w.Write([]byte("Hello, world!"))
-})
-http.ListenAndServe(":8080", sloghttp.New(log)(mux))
-```
-
-
-
-
-
-
-
-
-
+    log := slog.New(h)
+    mux := http.NewServeMux()
+    mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        log.Info("Hello world")
+        w.Write([]byte("Hello, world!"))
+    })
+    http.ListenAndServe(":8080", sloghttp.New(log)(mux))
+}
 ```
