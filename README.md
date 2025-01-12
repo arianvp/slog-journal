@@ -1,5 +1,7 @@
 # slog: Systemd journal handler
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/systemd/slog-journal.svg)](https://pkg.go.dev/github.com/systemd/slog-journal)
+
 ## Usage
 
 > [!NOTE]
