@@ -1,4 +1,4 @@
-module github.com/arianvp/slog-journal
+module github.com/systemd/slog-journal
 
 go 1.22.1
 
