@@ -198,8 +198,8 @@ func (h *Handler) appendAttr(b []byte, prefix string, a slog.Attr) []byte {
 	if a.Equal(slog.Attr{}) {
 		return b
 	}
-
-	if a.Value.Kind() == slog.KindGroup {
+	switch a.Value.Kind() {
+	case slog.KindGroup:
 		attrs := a.Value.Group()
 		// If a group has no Attrs (even if it has a non-empty key), ignore it.
 		if len(attrs) == 0 {
@@ -216,9 +216,14 @@ func (h *Handler) appendAttr(b []byte, prefix string, a slog.Attr) []byte {
 		for _, a := range attrs {
 			b = h.appendAttr(b, prefix, a)
 		}
-	} else {
+	case slog.KindDuration:
+		b = h.appendKV(b, prefix+a.Key, []byte(strconv.FormatInt(a.Value.Duration().Microseconds(), 10)))
+	case slog.KindTime:
+		b = h.appendKV(b, prefix+a.Key, []byte(strconv.FormatInt(a.Value.Time().UnixMicro(), 10)))
+	default:
 		b = h.appendKV(b, prefix+a.Key, []byte(a.Value.String()))
 	}
+
 	return b
 }
 
