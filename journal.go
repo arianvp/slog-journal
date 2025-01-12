@@ -34,14 +34,14 @@ type LevelVar struct {
 	slog.LevelVar
 }
 
-// Return l's level.
-func (l *LevelVar) Level() slog.Level {
+// Return v's level.
+func (v *LevelVar) Level() slog.Level {
 	sync.OnceFunc(func() {
 		if os.Getenv("DEBUG_INVOCATION") != "" {
-			l.Set(slog.LevelDebug)
+			v.Set(slog.LevelDebug)
 		}
 	})()
-	return l.LevelVar.Level()
+	return v.LevelVar.Level()
 }
 
 func levelToPriority(l slog.Level) syslog.Priority {
@@ -67,6 +67,7 @@ func levelToPriority(l slog.Level) syslog.Priority {
 	}
 }
 
+// Options configure the Journal handler.
 type Options struct {
 	Level slog.Leveler
 
