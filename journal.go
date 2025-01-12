@@ -37,6 +37,7 @@ type LevelVar struct {
 }
 
 // Return v's level.
+// When invoked for the first time, checks if the environment variable DEBUG_INVOCATION is set and if so, sets the level to slog.LevelDebug before returning it.
 func (v *LevelVar) Level() slog.Level {
 	sync.OnceFunc(func() {
 		if os.Getenv("DEBUG_INVOCATION") != "" {
@@ -102,12 +103,14 @@ type Handler struct {
 
 const sndBufSize = 8 * 1024 * 1024
 
-// NewHandler returns a new Handler that writes to the systemd journal.
+// NewHandler returns a new Handler that writes to the [systemd journal].
 // The journal only accepts keys of the form ^[A-Z_][A-Z0-9_]*$.
 // If opts is nil, the default options are used.
 // If opts.Level is nil, the default level is a [LevelVar] which is equivalent to
 // slog.LevelInfo unless the environment variable DEBUG_INVOCATION is set, in
 // which case it is slog.LevelDebug.
+//
+// [systemd journal]: https://systemd.io/JOURNAL_NATIVE_PROTOCOL/
 func NewHandler(opts *Options) (*Handler, error) {
 	h := &Handler{}
 
@@ -140,9 +143,23 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 
 var identifier = []byte(path.Base(os.Args[0]))
 
-// Handle handles the Record and formats it as a [journal message](https://systemd.io/JOURNAL_NATIVE_PROTOCOL/).
+// Handle handles the Record and formats it as a [journal message].
+// The Message field maps to the [MESSAGE] field in the journal.
+// The Level field maps to the [PRIORITY] field in the journal.
+// The PC field maps to the [CODE_FILE, CODE_FUNC and CODE_LINE] fields in the journal.
+// The Time field maps to the [SYSLOG_TIMESTAMP] field in the journal.
+// The Attrs field maps to the [KEY=VALUE] fields in the journal.
+// The [SYSLOG_IDENTIFIER] field is set to the base name of the program.
 // Journal only supports keys of the form ^[A-Z_][A-Z0-9_]*$.
+// Keys starting with an underscore are reserved for internal use and will be dropped.
 // Any other keys will be silently dropped.
+//
+// [journal message]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html
+// [MESSAGE]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#MESSAGE=
+// [PRIORITY]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#PRIORITY=
+// [CODE_FILE, CODE_FUNC and CODE_LINE]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#CODE_FILE
+// [SYSLOG_TIMESTAMP]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#SYSLOG_FACILITY=
+// [SYSLOG_IDENTIFIER]: https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html#SYSLOG_FACILITY=
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	buf := make([]byte, 0, 1024)
 	buf = h.appendKV(buf, "MESSAGE", []byte(r.Message))
