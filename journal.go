@@ -1,9 +1,6 @@
 /*
 Package slogjournal provides a handler for the systemd journal.
-
 The journal only accepts keys of the form ^[A-Z_][A-Z0-9_]*$.
-
-Example:
 */
 package slogjournal
 
