@@ -1,9 +1,8 @@
 # slog: Systemd journal handler
 
-## Usage
+[![Go Reference](https://pkg.go.dev/badge/github.com/systemd/slog-journal.svg)](https://pkg.go.dev/github.com/systemd/slog-journal)
 
-> [!NOTE]
-> Journald only supports keys of the form `^[A-Z_][A-Z0-9_]*$`. Any other keys will be silently dropped.
+## Usage
 
 ```go
 h , err := slogjournal.NewHandler(nil)
